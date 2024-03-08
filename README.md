@@ -3,6 +3,8 @@
 
 My board is a WaveShare 2.13 inch. On the flex ribbon cable we can see a marking of "FPC-A002 20.04.08"
 
+I am compiling in Arduino with the preset: ESP32-WROOM-DA Module
+
 
 https://github.com/ZinggJM/GxEPD2/tree/master
 
@@ -39,3 +41,5 @@ If you build unsucessfully and get odd errors such as
 
 It may be looking at a .c file which no longer exists but is cached. remove the temp cache directory which will be somewhere around /private/var/folders/qn/1115z7gx3qs12msnxk8310fh0000gn/T
 You can see where is storing this by finding an #include in the arduino app and hovering over it. It will show where the cache is 
+
+
