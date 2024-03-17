@@ -13,6 +13,8 @@ GxEPD2_Example.ino
 line 200 of GxEPD2_display_selection.h
 GxEPD2_BW<GxEPD2_213_GDEY0213B74, GxEPD2_213_GDEY0213B74::HEIGHT> display(GxEPD2_213_GDEY0213B74(/*CS=5*/ SS, /*DC=*/ 17, /*RST=*/ 16, /*BUSY=*/ 4)); // GDEY0213B74 122x250, SSD1680, (FPC-A002 20.04.08)
 
+For the new type: 
+
 Cable Connections
 ESP32       |   Color     | e-ink display
 3v3             Grey        VCC
@@ -29,6 +31,11 @@ Installed Ardiuno Libraries:
 Adafruit_BusIO
 Adafruit_GFX_Library
 GxEPD2
+ArduinoJson
+
+
+https://esp32io.com/tutorials/esp32-http-request
+https://arduinojson.org/v6/how-to/use-arduinojson-with-httpclient/
 
 
 If you build unsucessfully and get odd errors such as 
