@@ -36,7 +36,7 @@ ArduinoJson
 
 https://esp32io.com/tutorials/esp32-http-request
 https://arduinojson.org/v6/how-to/use-arduinojson-with-httpclient/
-
+Do NOT call http.getString() before http.getStream() or getStream() will be empty and fail with DeserializationError::EmptyInput
 
 If you build unsucessfully and get odd errors such as 
 
