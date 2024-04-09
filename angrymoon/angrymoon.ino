@@ -24,13 +24,13 @@
 #include "images/third_quarter.h"
 
 const char* ssid     = "TP-Link_54D8";
-const char* password = "ApartmentD26";
+const char* password = "";
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 
-String Moon_API_URL   = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/boulder%2C%20co?unitGroup=us&elements=datetime%2Cmoonphase&include=current&key=WZ9D6VKLBPTNUV5DV8T4TPGH3&contentType=json";
+String Moon_API_URL   = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/boulder%2C%20co?unitGroup=us&elements=datetime%2Cmoonphase&include=current&key=<YOUR_API_KEY>&contentType=json";
 
 BitmapDisplay bitmaps(display);
 
