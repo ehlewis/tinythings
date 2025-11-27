@@ -381,7 +381,6 @@ void setup()
       Serial.println("RTC not found or not responding!");
       while (1);
   }
-  setTime(2025, 11, 26, 12, 0, 0);
 
   if (rtcLostPower()) {
     Serial.println("RTC lost power, fetching NTP...");
@@ -401,7 +400,7 @@ void setup()
   Serial.print(" ");
   Serial.print(tmNow.Month);
   Serial.print(" ");
-  Serial.print(tmNow.Day);
+  Serial.println(tmNow.Day);
 
   clearAlarms();
 
