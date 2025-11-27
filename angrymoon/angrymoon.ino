@@ -10,9 +10,14 @@
 #include "DisplayFunctions.h"
 
 #include "time.h"
+#include <TimeLib.h>
+#include <string>
+#include <Wire.h>
+#include <DS3232RTC.h>
+
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
-#include <ArduinoJson.h>
 
 #include "images/new_moon.h"
 #include "images/full_moon.h"
@@ -23,34 +28,19 @@
 #include "images/first_quarter.h"
 #include "images/third_quarter.h"
 
-const char* ssid     = "TP-Link_54D8";
-const char* password = "ApartmentD26";
-
+// -------------------- Wi-Fi / NTP --------------------
+const char* ssid     = "YOUR_WIFI";
+const char* password = "YOUR_PASS";
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 0;
 const int   daylightOffset_sec = 3600;
 
-String Moon_API_URL   = "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline/boulder%2C%20co?unitGroup=us&elements=datetime%2Cmoonphase&include=current&key=WZ9D6VKLBPTNUV5DV8T4TPGH3&contentType=json";
 
 BitmapDisplay bitmaps(display);
 
-void setup()
-{
-  display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
+DS3232RTC rtc;
+#define WAKE_PIN 33 // connected to DS3231 INT/SQW
 
-  float currentConditions_moonphase = get_moon_phase();
-  display_moon_phase(currentConditions_moonphase);
-
-  long uS_TO_S_FACTOR = 1000000; /* Conversion factor for micro seconds to seconds */ 
-  long TIME_TO_SLEEP = 43200000; /* Time ESP32 will go to sleep (in seconds) */ //4.32m is 12 hours
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-  esp_deep_sleep_start();
-}
-
-void loop()
-{
-  
-}
 
 void draw_text(char* text)
 {
@@ -90,158 +80,57 @@ void display_current_time()
   while (display.nextPage());
 }
 
-void set_current_time(){
-  WiFiClientSecure client;
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected.");
-  client.setInsecure();
-  
-  // Init and get the time
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+float get_moon_phase_rtc(tmElements_t dt){
+    // Returns moon phase fraction (0 = new, 1 = full)
+    int year  = dt.Year + 1970;
+    int month = dt.Month;
+    int day   = dt.Day;
 
-  struct tm timeinfo;
-  if(!getLocalTime(&timeinfo)){
-    Serial.println("Failed to obtain time in set_current_time");
-    return;
-  }
-
-  //disconnect WiFi as it's no longer needed
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
-}
-
-float get_moon_phase(){
-  // Connect to Wi-Fi
-
-  WiFiClientSecure client;
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("");
-  Serial.println("WiFi connected.");
-  client.setInsecure();
-
-  HTTPClient http;
-  Serial.println("Querying Moon Phase API");
-  //http.useHTTP10(true);
-  http.begin(client, Moon_API_URL); //HTTP
-  int httpCode = http.GET();
-  float currentConditions_moonphase = -1;
-  // httpCode will be negative on error
-  if(httpCode > 0) {
-    // file found at server
-    if(httpCode == HTTP_CODE_OK) {
-      Serial.print("HTTP Code ");
-      Serial.println(httpCode);
-
-      DynamicJsonDocument api_response_json(2048);
-      http.setTimeout(10000); 
-
-      Stream& httpstream = http.getStream();
-
-      DeserializationError error = deserializeJson(api_response_json, http.getStream());
-
-      if (error) {
-        Serial.print("deserializeJson() failed: ");
-        Serial.println(error.c_str());
-      }
-      const char* resolvedAddress = api_response_json["resolvedAddress"];
-      currentConditions_moonphase = api_response_json["currentConditions"]["moonphase"];
-      Serial.print("current_moonphase: ");
-      Serial.println(currentConditions_moonphase);
-
-      delay(1000);
-    } else {
-      // HTTP header has been send and Server response header has been handled
-      Serial.printf("[HTTP] GET... code: %d\n", httpCode);
+    // Algorithm from John Conway, simple and fast
+    if (month < 3) {
+        year--;
+        month += 12;
     }
-  } else {
-    Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-  }
-  
-  http.end();
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
-  return currentConditions_moonphase;
+
+    ++month; // March = 3 → 4 (formula adjustment)
+    float c = 365.25 * year;
+    float e = 30.6 * month;
+    float jd = c + e + day - 694039.09; // days since known new moon
+    jd /= 29.5305882;                    // divide by lunar cycle
+    float phase = jd - floor(jd);            // fractional part = phase
+    return phase;
 }
 
-void display_moon_phase(float currentConditions_moonphase){
-    /*
-  0 – new moon
-  0-0.25 – waxing crescent
-  0.25 – first quarter
-  0.25-0.5 – waxing gibbous
-  0.5 – full moon
-  0.5-0.75 – waning gibbous
-  0.75 – last quarter
-  0.75 -1 – waning crescent
+void display_moon_phase(float p) {
+  /*
+    Moon phase float:
+    0.0         = New Moon
+    0.0 – 0.25  = Waxing Crescent
+    0.25        = First Quarter
+    0.25–0.5    = Waxing Gibbous
+    0.5         = Full Moon
+    0.5–0.75    = Waning Gibbous
+    0.75        = Third Quarter
+    0.75–1.0    = Waning Crescent
   */
-  if (currentConditions_moonphase == 0){
-    Serial.println("Displaying New Moon");
-    draw_new_moon();
-  }
-  else if (currentConditions_moonphase > 0 && currentConditions_moonphase < 0.25){
-    Serial.println("Displaying Waxing Crescent");
-    draw_waxing_crescent();
-  }
-  else if (currentConditions_moonphase == 0.25){
-    Serial.println("Displaying First Quarter");
-    draw_first_quarter();
-  }
-  else if (currentConditions_moonphase > 0.25 && currentConditions_moonphase < 0.5){
-    Serial.println("Displaying Waxing Gibbous");
-    draw_waxing_gibbous();
-  }
-  else if(currentConditions_moonphase == 0.5){
-    Serial.println("Displaying Full Moon");
-    draw_full_moon();
-  }
-  else if(currentConditions_moonphase > 0.5 && currentConditions_moonphase < 0.75){
-    Serial.println("Displaying Waning Gibbous");
-    draw_waning_gibbous();
-  }
-  else if(currentConditions_moonphase == 0.75){
-    Serial.println("Displaying Third Quarter");
-    draw_third_quarter();
-  }
-  else if(currentConditions_moonphase > 0.75 && currentConditions_moonphase <= 1){
-    Serial.println("Displaying Waning Crescent");
-    draw_waning_crescent();
-  }
+
+  if (p < 0.03 || p > 0.97) draw_new_moon();
+  else if (p < 0.22) draw_waxing_crescent();
+  else if (p < 0.28) draw_first_quarter();
+  else if (p < 0.47) draw_waxing_gibbous();
+  else if (p < 0.53) draw_full_moon();
+  else if (p < 0.72) draw_waning_gibbous();
+  else if (p < 0.78) draw_third_quarter();
+  else if (p <= 1) draw_waning_crescent();
   else{
     Serial.print("Invalid moonphase value: ");
-    Serial.println(currentConditions_moonphase);
+    Serial.println(p);
   }
-}
-
-void draw_waning_crescent()
-{
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setRotation(0);
-    display.setCursor(0, 0);
-    display.drawXBitmap(0, 0, waning_crescent_bits, waning_crescent_width, waning_crescent_height, GxEPD_BLACK);
-    Serial.println("draw waning_crescent");
-
-    
-  }
-  while (display.nextPage());
 }
 
 void draw_new_moon()
 {
+  Serial.println("Displaying New Moon");
   do
   {
     display.fillScreen(GxEPD_WHITE);
@@ -255,6 +144,7 @@ void draw_new_moon()
 
 void draw_full_moon()
 {
+  Serial.println("Displaying Full Moon");
   do
   {
     display.fillScreen(GxEPD_WHITE);
@@ -266,8 +156,25 @@ void draw_full_moon()
   while (display.nextPage());
 }
 
+void draw_waning_crescent()
+{
+  Serial.println("Displaying Waning Crescent");
+  do
+  {
+    display.fillScreen(GxEPD_WHITE);
+    display.setRotation(0);
+    display.setCursor(0, 0);
+    display.drawXBitmap(0, 0, waning_crescent_bits, waning_crescent_width, waning_crescent_height, GxEPD_BLACK);
+    Serial.println("draw waning_crescent");
+
+    
+  }
+  while (display.nextPage());
+}
+
 void draw_waxing_crescent()
 {
+  Serial.println("Displaying Waxing Crescent");
   do
   {
     display.fillScreen(GxEPD_WHITE);
@@ -281,6 +188,7 @@ void draw_waxing_crescent()
 
 void draw_waxing_gibbous()
 {
+  Serial.println("Displaying Waxing Gibbous");
   do
   {
     display.fillScreen(GxEPD_WHITE);
@@ -294,6 +202,7 @@ void draw_waxing_gibbous()
 
 void draw_first_quarter()
 {
+  Serial.println("Displaying First Quarter");
   do
   {
     display.fillScreen(GxEPD_WHITE);
@@ -307,6 +216,7 @@ void draw_first_quarter()
 
 void draw_third_quarter()
 {
+  Serial.println("Displaying Third Quarter");
   do
   {
     display.fillScreen(GxEPD_WHITE);
@@ -320,6 +230,7 @@ void draw_third_quarter()
 
 void draw_waning_gibbous()
 {
+  Serial.println("Displaying Waning Gibbous");
   do
   {
     display.fillScreen(GxEPD_WHITE);
@@ -364,5 +275,146 @@ void test_all_phases()
   draw_waning_gibbous();
   draw_text("Waning Gibbous");
   delay(2000);
+}
+
+// -------------------- Wi-Fi NTP --------------------
+bool fetchNTP(tmElements_t &now) {
+    WiFi.begin(ssid, password);
+    Serial.print("Connecting to Wi-Fi");
+    int retries = 0;
+    while (WiFi.status() != WL_CONNECTED && retries++ < 20) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("Wi-Fi failed");
+        return false;
+    }
+
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        Serial.println("Failed to get NTP time");
+        WiFi.disconnect(true);
+        return false;
+    }
+
+    now.Year = timeinfo.tm_year + 1900 - 1970; // TimeLib stores years since 1970
+    now.Month = timeinfo.tm_mon + 1;
+    now.Day = timeinfo.tm_mday;
+    now.Hour = timeinfo.tm_hour;
+    now.Minute = timeinfo.tm_min;
+    now.Second = timeinfo.tm_sec;
+
+    rtc.set(makeTime(now)); // set RTC
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    return true;
+}
+
+bool rtcLostPower() {
+    byte status = rtc.readRTC(0x0F);     // DS3231/DS3232 status register
+    return bitRead(status, 7);           // bit 7 = OSF (Oscillator Stop Flag)
+}
+
+void clearRTCLostPowerFlag() {
+    byte status = rtc.readRTC(0x0F);
+    bitClear(status, 7);
+    rtc.writeRTC(0x0F, status);
+}
+
+void clearAlarms() {
+  rtc.setAlarm(DS3232RTC::ALM1_MATCH_HOURS, 0, 0, 0, 0); // clear
+  rtc.setAlarm(DS3232RTC::ALM2_MATCH_HOURS, 0, 0, 0, 0);
+  rtc.alarmInterrupt(DS3232RTC::ALARM_1, false);
+  rtc.alarmInterrupt(DS3232RTC::ALARM_2, false);
+}
+
+void setESPAlarms(tmElements_t tmNow) {
+  // --------------------- Set Next Alarm ---------------------
+  // Example: 7:00 AM next day
+  tmElements_t alarmTime = tmNow;
+  alarmTime.Hour = 7;
+  alarmTime.Minute = 0;
+  alarmTime.Second = 0;
+
+  time_t tNow = makeTime(tmNow);
+  time_t tAlarm = makeTime(alarmTime);
+
+  if (tAlarm <= tNow) tAlarm += 24 * 3600; // next day if past 7AM
+
+  tmElements_t nextAlarm;
+  breakTime(tAlarm, nextAlarm);
+
+  rtc.setAlarm(DS3232RTC::ALM1_MATCH_HOURS, nextAlarm.Second, nextAlarm.Minute, nextAlarm.Hour, 0);
+  rtc.alarmInterrupt(DS3232RTC::ALARM_1, true);
+
+  // Wake ESP32 on EXT1 when INT pin goes low
+  esp_sleep_enable_ext1_wakeup(1ULL << WAKE_PIN, ESP_EXT1_WAKEUP_ALL_LOW);
+}
+
+void loop()
+{
+
+}
+
+void setup()
+{
+  Serial.begin(115200);
+  display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
+
+  Serial.println("Display test text");
+  char* test_text = "test";
+  draw_text(test_text);
+
+  // Start I2C for DS3231 on GPIO 25 (SDA) and GPIO 26 (SCL)
+  Wire.begin(25, 26);
+
+  rtc.begin();
+
+  tmElements_t tmNow;
+  rtc.read(tmNow); // try to read the time
+
+  if (tmNow.Year == 0) {
+      Serial.println("RTC not found or not responding!");
+      while (1);
+  }
+  setTime(2025, 11, 26, 12, 0, 0);
+
+  if (rtcLostPower()) {
+    Serial.println("RTC lost power, fetching NTP...");
+    if (!fetchNTP(tmNow)) {
+        Serial.println("Failed NTP, setting default time 11/26/2025");
+        setTime(2025, 11, 26, 12, 0, 0);
+        rtc.set(now());
+    }
+    clearRTCLostPowerFlag();
+  }
+  else{
+    Serial.println("RTC OK, clock running.");
+  }
+
+  Serial.print("Date: ");
+  Serial.print(tmNow.Year+1970);
+  Serial.print(" ");
+  Serial.print(tmNow.Month);
+  Serial.print(" ");
+  Serial.print(tmNow.Day);
+
+  clearAlarms();
+
+  float current_moonphase = get_moon_phase_rtc(tmNow);
+  display_moon_phase(current_moonphase);
+
+  Serial.print("Moon phase fraction: ");
+  Serial.println(current_moonphase);
+
+  setESPAlarms(tmNow);
+
+  Serial.println("Going to sleep...");
+  delay(100); // ensure display finishes
+  esp_deep_sleep_start();
 }
 
