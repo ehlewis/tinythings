@@ -325,12 +325,6 @@ void clearRTCLostPowerFlag() {
     rtc.writeRTC(0x0F, status);
 }
 
-void clearAlarms() {
-  rtc.setAlarm(DS3232RTC::ALM1_MATCH_HOURS, 0, 0, 0, 0); // clear
-  rtc.setAlarm(DS3232RTC::ALM2_MATCH_HOURS, 0, 0, 0, 0);
-  rtc.alarmInterrupt(DS3232RTC::ALARM_1, false);
-  rtc.alarmInterrupt(DS3232RTC::ALARM_2, false);
-}
 
 void setESPAlarms(tmElements_t tmNow) {
   // --------------------- Set Next Alarm ---------------------
@@ -371,7 +365,7 @@ void setup()
 
   // Start I2C for DS3231 on GPIO 25 (SDA) and GPIO 26 (SCL)
   Wire.begin(25, 26);
-
+  pinMode(WAKE_PIN, INPUT_PULLUP);
   rtc.begin();
 
   tmElements_t tmNow;
@@ -402,7 +396,12 @@ void setup()
   Serial.print(" ");
   Serial.println(tmNow.Day);
 
-  clearAlarms();
+  rtc.setAlarm(DS3232RTC::ALM1_MATCH_HOURS, 0, 0, 0, 0); // clear
+  rtc.setAlarm(DS3232RTC::ALM2_MATCH_HOURS, 0, 0, 0, 0);
+  rtc.alarmInterrupt(DS3232RTC::ALARM_1, false);
+  rtc.alarmInterrupt(DS3232RTC::ALARM_2, false);
+  rtc.alarm(DS3232RTC::ALARM_1);
+  rtc.alarm(DS3232RTC::ALARM_2);
 
   float current_moonphase = get_moon_phase_rtc(tmNow);
   display_moon_phase(current_moonphase);
