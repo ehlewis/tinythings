@@ -359,10 +359,6 @@ void setup()
   Serial.begin(115200);
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
 
-  Serial.println("Display test text");
-  char* test_text = "test";
-  draw_text(test_text);
-
   // Start I2C for DS3231 on GPIO 25 (SDA) and GPIO 26 (SCL)
   Wire.begin(25, 26);
   pinMode(WAKE_PIN, INPUT_PULLUP);
