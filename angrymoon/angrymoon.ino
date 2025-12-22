@@ -15,25 +15,17 @@
 #include <Wire.h>
 #include <DS3232RTC.h>
 
-#include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <HTTPClient.h>
-
-#include "images/new_moon.h"
-#include "images/full_moon.h"
-#include "images/waxing_crescent.h"
-#include "images/waning_crescent.h"
-#include "images/waxing_gibbous.h"
-#include "images/waning_gibbous.h"
-#include "images/first_quarter.h"
-#include "images/third_quarter.h"
-
-// -------------------- Wi-Fi / NTP --------------------
-const char* ssid     = "YOUR_WIFI";
-const char* password = "YOUR_PASS";
-const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 0;
-const int   daylightOffset_sec = 3600;
+#define EPAPER_W 250
+#define EPAPER_H 122
+#include <MoonImage.h>
+#include "images/new_moon_cropped.h"
+#include "images/full_moon_cropped.h"
+#include "images/waxing_crescent_cropped.h"
+#include "images/waning_crescent_cropped.h"
+#include "images/waxing_gibbous_cropped.h"
+#include "images/waning_gibbous_cropped.h"
+#include "images/first_quarter_cropped.h"
+#include "images/third_quarter_cropped.h"
 
 
 BitmapDisplay bitmaps(display);
@@ -101,6 +93,112 @@ float get_moon_phase_rtc(tmElements_t dt){
     return phase;
 }
 
+extern const uint8_t new_moon_cropped_bits[] PROGMEM;
+MoonImage new_moon = {
+    new_moon_cropped_bits,
+    96, 96,    // cropped width & height
+    77, 13     // offset to center
+};
+
+extern const uint8_t waxing_crescent_cropped_bits[] PROGMEM;
+MoonImage waxing_crescent = {
+    waxing_crescent_cropped_bits,
+    94, 96,
+    77, 13
+};
+
+extern const uint8_t first_quarter_cropped_bits[] PROGMEM;
+MoonImage first_quarter = {
+    first_quarter_cropped_bits,
+    95, 95,
+    77, 13
+};
+
+extern const uint8_t waxing_gibbous_cropped_bits[] PROGMEM;
+MoonImage waxing_gibbous = {
+    waxing_gibbous_cropped_bits,
+    95, 95,
+    77, 13
+};
+
+extern const uint8_t full_moon_cropped_bits[] PROGMEM;
+MoonImage full_moon = {
+    full_moon_cropped_bits,
+    95, 95,
+    77, 13
+};
+
+extern const uint8_t waning_gibbous_cropped_bits[] PROGMEM;
+MoonImage waning_gibbous = {
+    waning_gibbous_cropped_bits,
+    95, 95,
+    77, 13
+};
+
+extern const uint8_t third_quarter_cropped_bits[] PROGMEM;
+MoonImage third_quarter = {
+    third_quarter_cropped_bits,
+    95, 95,
+    77, 13
+};
+
+extern const uint8_t waning_crescent_cropped_bits[] PROGMEM;
+MoonImage waning_crescent = {
+    waning_crescent_cropped_bits,
+    95, 95,
+    77, 13
+};
+
+void drawMoon(const MoonImage& img)
+{
+    display.firstPage();
+    do {
+        display.fillScreen(GxEPD_WHITE);
+
+        int16_t x = (EPAPER_W - img.width) / 2 + img.offsetX;
+        int16_t y = (EPAPER_H - img.height) / 2 + img.offsetY;
+
+        display.drawXBitmap(x, y, img.data, img.width, img.height, GxEPD_BLACK);
+    }
+    while (display.nextPage());
+}
+
+
+void test_all_phases()
+{
+  drawMoon(waning_crescent);
+  draw_text("Waning Crescent");
+  delay(2000);
+
+  drawMoon(new_moon);
+  draw_text("New Moon");
+  delay(2000);
+
+  drawMoon(waxing_crescent);
+  draw_text("Waxing Crescent");
+  delay(2000);
+
+  drawMoon(waxing_gibbous);
+  draw_text("Waxing Gibbous");
+  delay(2000);
+
+  drawMoon(first_quarter);
+  draw_text("First Quarter");
+  delay(2000);
+
+  drawMoon(third_quarter);
+  draw_text("Third Quarter");
+  delay(2000);
+
+  drawMoon(full_moon);
+  draw_text("Full Moon");
+  delay(2000);
+
+  drawMoon(waxing_gibbous);
+  draw_text("Waning Gibbous");
+  delay(2000);
+}
+
 void display_moon_phase(float p) {
   /*
     Moon phase float:
@@ -114,215 +212,24 @@ void display_moon_phase(float p) {
     0.75–1.0    = Waning Crescent
   */
 
-  if (p < 0.03 || p > 0.97) draw_new_moon();
-  else if (p < 0.22) draw_waxing_crescent();
-  else if (p < 0.28) draw_first_quarter();
-  else if (p < 0.47) draw_waxing_gibbous();
-  else if (p < 0.53) draw_full_moon();
-  else if (p < 0.72) draw_waning_gibbous();
-  else if (p < 0.78) draw_third_quarter();
-  else if (p <= 1) draw_waning_crescent();
+  if (p < 0.03 || p > 0.97) drawMoon(new_moon);
+  else if (p < 0.22) drawMoon(waxing_crescent);
+  else if (p < 0.28) drawMoon(first_quarter);
+  else if (p < 0.47) drawMoon(waxing_gibbous);
+  else if (p < 0.53) drawMoon(full_moon);
+  else if (p < 0.72) drawMoon(waning_gibbous);
+  else if (p < 0.78) drawMoon(third_quarter);
+  else if (p <= 1) drawMoon(waning_crescent);
   else{
     Serial.print("Invalid moonphase value: ");
     Serial.println(p);
   }
 }
 
-void draw_new_moon()
-{
-  Serial.println("Displaying New Moon");
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setRotation(0);
-    display.setCursor(0, 0);
-    display.drawXBitmap(0, 0, new_moon_bits, new_moon_width, new_moon_height, GxEPD_BLACK);
-    Serial.println("draw new_moon");
-  }
-  while (display.nextPage());
-}
-
-void draw_full_moon()
-{
-  Serial.println("Displaying Full Moon");
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setRotation(0);
-    display.setCursor(0, 0);
-    display.drawXBitmap(0, 0, full_moon_bits, full_moon_width, full_moon_height, GxEPD_BLACK);
-    Serial.println("draw full_moon");
-  }
-  while (display.nextPage());
-}
-
-void draw_waning_crescent()
-{
-  Serial.println("Displaying Waning Crescent");
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setRotation(0);
-    display.setCursor(0, 0);
-    display.drawXBitmap(0, 0, waning_crescent_bits, waning_crescent_width, waning_crescent_height, GxEPD_BLACK);
-    Serial.println("draw waning_crescent");
-
-    
-  }
-  while (display.nextPage());
-}
-
-void draw_waxing_crescent()
-{
-  Serial.println("Displaying Waxing Crescent");
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setRotation(0);
-    display.setCursor(0, 0);
-    display.drawXBitmap(0, 0, waxing_crescent_bits, waxing_crescent_width, waxing_crescent_height, GxEPD_BLACK);
-    Serial.println("draw waxing_crescent");
-  }
-  while (display.nextPage());
-}
-
-void draw_waxing_gibbous()
-{
-  Serial.println("Displaying Waxing Gibbous");
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setRotation(0);
-    display.setCursor(0, 0);
-    display.drawXBitmap(0, 0, waxing_gibbous_bits, waxing_gibbous_width, waxing_gibbous_height, GxEPD_BLACK);
-    Serial.println("draw waxing_gibbous");
-  }
-  while (display.nextPage());
-}
-
-void draw_first_quarter()
-{
-  Serial.println("Displaying First Quarter");
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setRotation(0);
-    display.setCursor(0, 0);
-    display.drawXBitmap(0, 0, first_quarter_bits, first_quarter_width, first_quarter_height, GxEPD_BLACK);
-    Serial.println("draw first_quarter");
-  }
-  while (display.nextPage());
-}
-
-void draw_third_quarter()
-{
-  Serial.println("Displaying Third Quarter");
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setRotation(0);
-    display.setCursor(0, 0);
-    display.drawXBitmap(0, 0, third_quarter_bits, third_quarter_width, third_quarter_height, GxEPD_BLACK);
-    Serial.println("draw third_quarter");
-  }
-  while (display.nextPage());
-}
-
-void draw_waning_gibbous()
-{
-  Serial.println("Displaying Waning Gibbous");
-  do
-  {
-    display.fillScreen(GxEPD_WHITE);
-    display.setRotation(0);
-    display.setCursor(0, 0);
-    display.drawXBitmap(0, 0, waning_gibbous_bits, waning_gibbous_width, waning_gibbous_height, GxEPD_BLACK);
-    Serial.println("draw waning_gibbous");
-  }
-  while (display.nextPage());
-}
-
-void test_all_phases()
-{
-  draw_waning_crescent();
-  draw_text("Waning Crescent");
-  delay(2000);
-
-  draw_new_moon();
-  draw_text("New Moon");
-  delay(2000);
-
-  draw_waxing_crescent();
-  draw_text("Waxing Crescent");
-  delay(2000);
-
-  draw_waxing_gibbous();
-  draw_text("Waxing Gibbous");
-  delay(2000);
-
-  draw_first_quarter();
-  draw_text("First Quarter");
-  delay(2000);
-
-  draw_third_quarter();
-  draw_text("Third Quarter");
-  delay(2000);
-
-  draw_full_moon();
-  draw_text("Full Moon");
-  delay(2000);
-
-  draw_waning_gibbous();
-  draw_text("Waning Gibbous");
-  delay(2000);
-}
-
-// -------------------- Wi-Fi NTP --------------------
-bool fetchNTP(tmElements_t &now) {
-    WiFi.begin(ssid, password);
-    Serial.print("Connecting to Wi-Fi");
-    int retries = 0;
-    while (WiFi.status() != WL_CONNECTED && retries++ < 20) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println();
-
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("Wi-Fi failed");
-        return false;
-    }
-
-    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) {
-        Serial.println("Failed to get NTP time");
-        WiFi.disconnect(true);
-        return false;
-    }
-
-    now.Year = timeinfo.tm_year + 1900 - 1970; // TimeLib stores years since 1970
-    now.Month = timeinfo.tm_mon + 1;
-    now.Day = timeinfo.tm_mday;
-    now.Hour = timeinfo.tm_hour;
-    now.Minute = timeinfo.tm_min;
-    now.Second = timeinfo.tm_sec;
-
-    rtc.set(makeTime(now)); // set RTC
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
-    return true;
-}
 
 bool rtcLostPower() {
     byte status = rtc.readRTC(0x0F);     // DS3231/DS3232 status register
     return bitRead(status, 7);           // bit 7 = OSF (Oscillator Stop Flag)
-}
-
-void clearRTCLostPowerFlag() {
-    byte status = rtc.readRTC(0x0F);
-    bitClear(status, 7);
-    rtc.writeRTC(0x0F, status);
 }
 
 
@@ -369,17 +276,13 @@ void setup()
 
   if (tmNow.Year == 0) {
       Serial.println("RTC not found or not responding!");
-      while (1);
+      return;
   }
 
   if (rtcLostPower()) {
     Serial.println("RTC lost power, fetching NTP...");
-    if (!fetchNTP(tmNow)) {
-        Serial.println("Failed NTP, setting default time 11/26/2025");
-        setTime(2025, 11, 26, 12, 0, 0);
-        rtc.set(now());
-    }
-    clearRTCLostPowerFlag();
+    draw_text("RTC Error :(");
+    return;
   }
   else{
     Serial.println("RTC OK, clock running.");
