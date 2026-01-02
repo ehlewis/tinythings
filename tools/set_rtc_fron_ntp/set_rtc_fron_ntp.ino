@@ -108,19 +108,14 @@ void setup()
     
     clearRTCLostPowerFlag();
 
+    rtc.read(tmNow);
+
     Serial.print("Date: ");
     Serial.print(tmNow.Year+1970);
     Serial.print(" ");
     Serial.print(tmNow.Month);
     Serial.print(" ");
     Serial.println(tmNow.Day);
-
-    rtc.setAlarm(DS3232RTC::ALM1_MATCH_HOURS, 0, 0, 0, 0); // clear
-    rtc.setAlarm(DS3232RTC::ALM2_MATCH_HOURS, 0, 0, 0, 0);
-    rtc.alarmInterrupt(DS3232RTC::ALARM_1, false);
-    rtc.alarmInterrupt(DS3232RTC::ALARM_2, false);
-    rtc.alarm(DS3232RTC::ALARM_1);
-    rtc.alarm(DS3232RTC::ALARM_2);
 
 
     Serial.println("Done");

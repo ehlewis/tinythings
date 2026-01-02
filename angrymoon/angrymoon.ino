@@ -154,9 +154,10 @@ void drawMoon(const MoonImage& img)
     display.firstPage();
     do {
         display.fillScreen(GxEPD_WHITE);
+        display.setRotation(1);
 
-        int16_t x = (EPAPER_W - img.width) / 2 + img.offsetX;
-        int16_t y = (EPAPER_H - img.height) / 2 + img.offsetY;
+        int16_t x = (EPAPER_W - img.width) / 2; // + img.offsetX
+        int16_t y = (EPAPER_H - img.height) / 2 + 5; // + img.offsetY
 
         display.drawXBitmap(x, y, img.data, img.width, img.height, GxEPD_BLACK);
     }
@@ -307,6 +308,13 @@ void setup()
 
   Serial.print("Moon phase fraction: ");
   Serial.println(current_moonphase);
+
+  Serial.print("Date: ");
+  Serial.print(tmNow.Year+1970);
+  Serial.print(" ");
+  Serial.print(tmNow.Month);
+  Serial.print(" ");
+  Serial.println(tmNow.Day);
 
   setESPAlarms(tmNow);
 
