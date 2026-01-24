@@ -28,14 +28,13 @@ Cable Connections
 
 
 ## Libraries:
-Adafruit_BusIO
-Adafruit_GFX_Library
-GxEPD2
-ArduinoJson
+- Adafruit_BusIO
+- Adafruit_GFX_Library
+- GxEPD2
+- ArduinoJson
 
 
 ## Image generation
->>>>>>> Stashed changes
 
 https://github.com/ZinggJM/GxEPD2/tree/master
 
@@ -126,6 +125,7 @@ void drawMoon(const MoonImage& img)
 ## Useful links
 
 https://github.com/todd-herbert/heltec-eink-modules/blob/main/docs/XBitmapTutorial/3color.md
+
 https://forum.arduino.cc/t/gxepd-gxepd2-h-bitmapformat-need-info-in-order-to-make-my-own-images/1193845/3
 
 
