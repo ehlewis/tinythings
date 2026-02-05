@@ -1,4 +1,4 @@
-#  OLED
+#  MINIOCEAN
 
 <<<<<<< Updated upstream
 Small implementation of OLED display
@@ -6,7 +6,7 @@ Small implementation of OLED display
 ## Installed Libraries
 
 Adafruit_SSD1306
-Adafruit_GFX library
+Adafruit_MPU6050
 Adafruit BusIO
 
 
