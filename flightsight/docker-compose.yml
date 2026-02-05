@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  readsb:
+    image: flightsight-readsb
+    # Use host networking so readsb can bind to local ports (mlat/net listeners).
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    # If you prefer mapping a single device, replace the devices entry with the specific node.
+    #devices:
+      #- "/dev/bus/usb:/dev/bus/usb"
+    # Some hosts require privileged to access USB devices and udev rules.
+    # Uncomment the following line if you run into permission/device access issues.
+    privileged: true
+    volumes:
+      - ./logs:/var/log/readsb
+    environment:
+      - READSB_LAT=40.0190
+      - READSB_LON=105.2747
