@@ -15,8 +15,8 @@
 #include <Wire.h>
 #include <DS3232RTC.h>
 
-#define EPAPER_W 250
-#define EPAPER_H 122
+#define EPAPER_W 200 // 250 for 2.13 inch e-ink
+#define EPAPER_H 200 // 122 for 2.13 inch e-ink
 #include <MoonImage.h>
 #include "images/new_moon_cropped.h"
 #include "images/full_moon_cropped.h"
