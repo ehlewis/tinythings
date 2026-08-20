@@ -399,6 +399,6 @@ void setup()
 
   delay(5000); // ensure display finishes
   Serial.println("Going to sleep...");
-  //esp_deep_sleep_start();
+  esp_deep_sleep_start();
 }
 
