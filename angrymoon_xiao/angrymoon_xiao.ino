@@ -16,8 +16,8 @@
 #include <Wire.h>
 #include <DS3232RTC.h>
 
-#define EPAPER_W 250 // 250 for 2.13 inch e-ink
-#define EPAPER_H 122 // 122 for 2.13 inch e-ink
+#define EPAPER_W 200 // 250 for 2.13 inch e-ink
+#define EPAPER_H 200 // 122 for 2.13 inch e-ink
 #include <MoonImage.h>
 #include "images/new_moon_cropped.h"
 #include "images/full_moon_cropped.h"
@@ -376,12 +376,8 @@ void setup()
 
 
   float current_moonphase = get_moon_phase_rtc(tmNow);
-  
-
-  clearScreen();
 
   Serial.println("Displaying moon");
-  delay(2000); // ensure display finishes
   display_moon_phase(current_moonphase);
   Serial.println("Drew moon");
 
