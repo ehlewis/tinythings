@@ -34,3 +34,4 @@
 *.app
 /.vscode
 angrymoon/.env
+/miniocean/miniocean_pcb/miniocean/miniocean-backups

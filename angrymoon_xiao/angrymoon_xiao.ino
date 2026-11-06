@@ -304,7 +304,15 @@ void setESPAlarms(tmElements_t tmNow) {
   rtc.alarmInterrupt(DS3232RTC::ALARM_1, true);
 
   // Wake ESP32 on EXT1 when INT pin goes low
-  esp_sleep_enable_ext1_wakeup(1ULL << WAKE_PIN, ESP_EXT1_WAKEUP_ALL_LOW);
+  esp_sleep_enable_ext1_wakeup(1ULL << WAKE_PIN, ESP_EXT1_WAKEUP_ANY_LOW);
+  
+  
+  Serial.print("Next wakeup will be at: ");
+  Serial.print(nextAlarm.Hour);
+  Serial.print(" ");
+  Serial.print(nextAlarm.Minute);
+  Serial.print(" ");
+  Serial.println(nextAlarm.Second);
 }
 
 void loop()
@@ -390,11 +398,18 @@ void setup()
   Serial.print(tmNow.Month);
   Serial.print(" ");
   Serial.println(tmNow.Day);
+  Serial.print("Time: ");
+  Serial.print(tmNow.Hour);
+  Serial.print(" ");
+  Serial.print(tmNow.Minute);
+  Serial.print(" ");
+  Serial.println(tmNow.Second);
 
   setESPAlarms(tmNow);
 
   delay(5000); // ensure display finishes
   Serial.println("Going to sleep...");
+  display.hibernate();
   esp_deep_sleep_start();
 }
 
